@@ -1,0 +1,116 @@
+# spike-asr — 端侧流式 ASR 探针
+
+**⚠️ 这是一次性验证代码，不是产品。验证完即弃。**
+
+## 要回答的问题
+
+在课堂远场录音上，端侧流式中文 ASR（sherpa-onnx int8 zipformer）够不够准、够不够快，
+以支撑「上课录音 → 老师提问时快速给出答案」这个场景？
+
+## 结论：不够，而且问题不在模型
+
+详见 [`analysis_report.md`](analysis_report.md)。摘要：
+
+- **SNR 只有 14.4 dB**（语音峰 -29.9 dB，噪声底 -44.3 dB）——语音和噪声一样响
+- **2k-8k Hz 高频比人声核心低 26-28 dB**——辅音信息大量丢失，这是 ASR 崩掉的直接原因
+- **动态范围仅 9.9 dB**——「说话」和「不说话」音量几乎没差别
+- 131 分钟里被判定为「有声」的只有 6.7%
+
+对应的 ASR 输出（`asr_class_output.txt` 片段）：
+
+```
+[   16.1s ->   32.5s] 我一个苏雷还不利之地铁 M然后这个这里呢会是产科据奖据奖励小地利者叫你 GT呃叫叫呃叫叫叫 A曲巨灵巨巨巨景倪海珍...
+```
+
+**这不是调参能救的。** 换更大的模型只会更自信地把噪声转成错字。
+
+## 文件
+
+| 文件 | 作用 |
+|---|---|
+| `run_asr.py` | 主探针：加载 sherpa-onnx zipformer，流式转写，输出分段文本 + RTF |
+| `analyze_audio.py` | 结构分析：能量分布、有声段占比、动态范围 |
+| `analyze_spectrum.py` | 频谱分析：分频段能量、SNR 估计 |
+| `analysis_report.md` | 上面两个脚本在 `class_16k.wav` 上的完整结论 |
+
+## 环境
+
+```powershell
+cd spike-asr
+py -3.11 -m venv .venv
+.\.venv\Scripts\pip install sherpa-onnx numpy
+```
+
+模型权重放 `models/`（int8 流式 zipformer 中英双语）：
+
+```
+models/
+  encoder-epoch-99-avg-1.int8.onnx    # 182 MB
+  decoder-epoch-99-avg-1.int8.onnx    #  13 MB
+  joiner-epoch-99-avg-1.int8.onnx     #   3 MB
+  tokens.txt
+```
+
+## 用法
+
+```powershell
+# 结构分析
+.\.venv\Scripts\python.exe analyze_audio.py <音频.wav>
+
+# 频谱分析
+.\.venv\Scripts\python.exe analyze_spectrum.py <音频.wav>
+
+# ASR 转写
+.\.venv\Scripts\python.exe run_asr.py <音频.wav> --realtime
+.\.venv\Scripts\python.exe run_asr.py <音频.wav> --threads 8 --hotwords hw.txt
+```
+
+`run_asr.py` 只输出文字和耗时。**准确率必须由人耳核对——机器判断不了自己转得对不对。**
+
+## 下一步
+
+在拿到信噪比合格的录音素材之前，继续优化 ASR 参数没有意义。
+优先验证的是**采集方式**：手机放桌面、靠近讲台、关闭空调。
+```
+
+{"tool_use": [{"name": "Write", "input": {"file_path": "D:\\创业\\听刻\\README.md"}}]}
+```
+# 听刻
+
+上课录音 → 老师提问时，快速给出答案。
+
+## 为什么做这个
+
+课上到中途老师突然提问，没跟上上下文的学生答不上来。
+现有的手机实时转录（如澎湃 OS）只能把话转成字，转完还是得自己读懂、自己想答案。
+
+「听刻」要做的是跨过这一步：**不只转写，而是理解上下文，直接给出可以照着说的回答。**
+扩展方向：把课件、教材、参考资料一起喂进去，让回答有据可依。
+
+## 当前状态：技术路线验证中
+
+`spike-asr/` 是一次性探针，验证「端侧小模型能不能吃下课堂远场录音」。
+
+**结论：不能。** 素材本身的物理质量就不合格：
+
+| 指标 | 实测 | 需要 |
+|---|---|---|
+| 信噪比 SNR | **14.4 dB** | > 25 dB |
+| 2k-8k Hz 高频 | 比人声核心低 **26-28 dB** | 低 10-15 dB |
+| 动态范围 | 9.9 dB | 30-40 dB |
+
+131 分钟的课堂录音里，被判定为「有声」的只有 6.7%。ASR 输出是不成句的音节乱码。
+
+**问题不在模型，在信号。** 详细数据和推理见 [`spike-asr/analysis_report.md`](spike-asr/analysis_report.md)。
+
+## 下一步
+
+1. **先解决采集**——手机放桌上、靠近讲台、关空调，重录一批素材。这是最便宜也最可能是决定性的实验。
+2. 采集合格后，再决定 ASR 路线（端侧小模型 / 云端大模型）和交互形态。
+
+在拿到合格素材前，继续调 ASR 参数是无意义的。
+
+## 仓库说明
+
+- `spike-asr/` — ASR 探针（一次性，验完即弃）
+- 音频素材、模型权重、ASR 原始输出均不入库（见 `.gitignore`），因为它们体积大且可能含课堂隐私内容
