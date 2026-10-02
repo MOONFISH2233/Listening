@@ -56,3 +56,62 @@ python record_check.py 录音.m4a --json           # 机器可读
 - **削波**：采样点绝对值 > 0.999 的比例。
 
 频段定义（`BANDS`）与 `spike-asr/analyze_spectrum.py` 保持一致，方便对比历史数据。
+
+---
+
+## batch_record_check.py — 批量体检
+
+对一个目录下的所有录音递归体检，末尾汇总，并点名 SNR 最低的那条。
+
+```powershell
+python batch_record_check.py 录音目录
+python batch_record_check.py 录音目录 --json
+python batch_record_check.py 录音目录 --ext .m4a .wav
+```
+
+和 `record_check.py` 的区别：那个是「录完一段立刻查」，这个是「查一整批」。
+
+---
+
+## compare_takes.py — 采集对照实验
+
+**这个工具是为了回答 `COLLECTION.md` 里那些「没有对照数据」的问题。**
+
+同一节课用不同摆法录几段，文件名标明摆法，然后：
+
+```powershell
+python compare_takes.py 录音目录
+python compare_takes.py 录音目录 --baseline take1_兜里
+```
+
+输出横向对比表，指出每种摆法差在哪、哪个指标最好、整体哪种摆法最优。
+带上 `--baseline` 会额外输出「其它摆法相对基准改善了多少 dB」——
+**这才是对照实验要的答案：哪条建议真的有用，有用多少。**
+
+### 命名约定
+
+摆法写在文件名里，脚本只按名字分组，不解析语义：
+
+```
+take1_兜里.m4a
+take2_桌上朝讲台.m4a
+take3_前三排桌上.m4a
+```
+
+### 为什么需要它
+
+`COLLECTION.md` 的建议（手机别放兜里、坐前三排、关空调）全是**推断**。
+要变成结论，必须录几段做对照。没有这个脚本，就得人工跑 `record_check.py`
+再手抄数字进表格——繁琐、易错、难对比，结果就是对照实验不会真的被执行。
+
+### 用现有素材试跑的结果
+
+拿 `spike-asr/` 里的失败素材当样本，确认工具能跑通，同时发现一件事：
+
+```
+sample_raw   SNR 17.7  高频 -25.0  动态 14.5
+sample_norm  SNR 17.2  高频 -24.9  动态 14.1
+```
+
+两者差异只有 0.1-0.5 dB —— `spike-asr/` 里那个「归一化」处理**几乎没起作用**，
+两条都是同一批失败素材。这个脚本让这种差异一眼可见。
