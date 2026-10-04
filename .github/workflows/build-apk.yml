@@ -34,9 +34,9 @@ jobs:
         # tools 包，表现就是在这一步 11 秒内直接失败。v4 迁到 Node24 并修了 removed tools package。
         uses: android-actions/setup-android@v4
         with:
-          # 显式点名要装的包，不依赖 action 的默认清单（默认清单随版本变，是这次踩坑的根源）
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
-          cmdline-tools-version: '20.0'
+          # 只声明真正需要的：compileSdk=34 的 platform。cmdline-tools 用默认值（22.0），
+          # 不显式指定——每多传一个参数就多一个变量，这次踩坑就是这么来的。
+          packages: 'platform-tools platforms;android-34'
 
       - name: Cache Gradle
         uses: actions/cache@v4
