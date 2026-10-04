@@ -198,16 +198,20 @@ class RecorderService : Service() {
 
             // 2) 识别：失败只记日志，不影响录音。
             try {
-                asr?.accept(buffer, n)
-                val pending = asr?.currentText().orEmpty()
-                if (asr?.isEndpoint() == true) {
-                    val seg = asr.currentText()
-                    if (seg.isNotBlank()) {
-                        finalized.append(seg).append('\n')
+                // 取局部 val：asr 是可空可变属性，直接连着调编译器
+                // 无法智能转换（可能被别的线程改掉）。
+                val engine = asr
+                if (engine != null) {
+                    engine.accept(buffer, n)
+                    val pending = engine.currentText()
+                    if (engine.isEndpoint()) {
+                        if (pending.isNotBlank()) {
+                            finalized.append(pending).append('\n')
+                        }
+                        engine.reset()
                     }
-                    asr.reset()
+                    notifyTranscript(pending)
                 }
-                notifyTranscript(pending)
             } catch (e: Exception) {
                 Log.e(TAG, "识别出错，跳过这一块", e)
             }

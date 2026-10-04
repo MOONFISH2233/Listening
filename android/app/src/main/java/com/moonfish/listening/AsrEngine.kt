@@ -2,6 +2,8 @@ package com.moonfish.listening
 
 import android.content.Context
 import android.util.Log
+import com.k2fsa.sherpa.onnx.EndpointConfig
+import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
@@ -34,7 +36,9 @@ import java.io.File
  * 已对照官方 Android 示例工程（android/SherpaOnnx）核实过：
  * OnlineRecognizer / OnlineStream / OnlineRecognizerConfig /
  * OnlineTransducerModelConfig / FeatureConfig 都是真实存在的类，
- * decodingMethod、enableEndpoint、rule1MinTrailingSilence 等字段也对得上。
+ * decodingMethod、enableEndpoint、endpointConfig 等字段也对得上
+ * （端点规则是嵌套的 EndpointRule，不是平铺参数——最初写错了，
+ *   编译报 No parameter with name 'rule1MinTrailingSilence' 才发现）。
  * 依赖走 JitPack 的 com.github.k2-fsa:sherpa-onnx（见 app/build.gradle.kts）。
  *
  * 即便如此，所有和 sherpa-onnx 直接打交道的代码仍然只关在这一个文件里：
@@ -99,12 +103,27 @@ class AsrEngine(private val context: Context) {
             // 那里也试过 modified_beam_search，**没有改善**，所以不折腾。
             decodingMethod = "greedy_search",
             enableEndpoint = true,
-            // 端点规则：静音 2.4 秒判定一句结束。
-            // 比官方 demo 的默认值保守一些——课堂上停顿多，
-            // 断得太碎会让每句都缺上下文。
-            rule1MinTrailingSilence = 2.4f,
-            rule2MinTrailingSilence = 1.2f,
-            rule3MinUtteranceLength = 20f,
+            // 端点规则不是平铺参数，而是包在 endpointConfig 里、每条一个
+            // EndpointRule。签名照 v1.13.8 源码：
+            //   EndpointRule(mustContainNonSilence, minTrailingSilence, minUtteranceLength)
+            // 课堂上停顿多，判句结束比官方 demo 保守，断得太碎会缺上下文。
+            endpointConfig = EndpointConfig(
+                rule1 = EndpointRule(
+                    mustContainNonSilence = false,
+                    minTrailingSilence = 2.4f,
+                    minUtteranceLength = 0.0f,
+                ),
+                rule2 = EndpointRule(
+                    mustContainNonSilence = true,
+                    minTrailingSilence = 1.2f,
+                    minUtteranceLength = 0.0f,
+                ),
+                rule3 = EndpointRule(
+                    mustContainNonSilence = false,
+                    minTrailingSilence = 0.0f,
+                    minUtteranceLength = 20.0f,
+                ),
+            ),
         )
 
         recognizer = OnlineRecognizer(assetManager = context.assets, config = config)

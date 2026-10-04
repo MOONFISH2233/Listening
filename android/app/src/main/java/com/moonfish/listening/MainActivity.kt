@@ -334,7 +334,8 @@ class MainActivity : AppCompatActivity(), RecorderService.Listener {
     }
 
     private fun scrollTranscriptToBottom() {
-        findViewById<android.widget.ScrollView>(R.id.scrollTranscript)
-            .post { it.fullScroll(android.view.View.FOCUS_DOWN) }
+        val sv = findViewById<android.widget.ScrollView>(R.id.scrollTranscript)
+        // View.post 接 Runnable，lambda 无参数，不能写 it。
+        sv.post { sv.fullScroll(android.view.View.FOCUS_DOWN) }
     }
 }
