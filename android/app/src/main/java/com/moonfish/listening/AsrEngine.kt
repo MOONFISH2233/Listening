@@ -126,7 +126,12 @@ class AsrEngine(private val context: Context) {
             ),
         )
 
-        recognizer = OnlineRecognizer(assetManager = context.assets, config = config)
+        // assetManager 必须传 null —— 踩过坑，代价是点录音就闪退：
+        // 模型已解压到 filesDir，走文件系统绝对路径。若这里传 context.assets，
+        // native 层会误以为要读 assets，读绝对路径失败后直接 F/sherpa-onnx 退出
+        // （native abort，Java 抓不到，crash buffer 为空）。
+        // 官方说明：https://github.com/k2-fsa/sherpa-onnx/issues/2562
+        recognizer = OnlineRecognizer(assetManager = null, config = config)
         stream = recognizer!!.createStream()
         Log.i(TAG, "识别引擎就绪，模型目录 ${dir.absolutePath}")
     }
