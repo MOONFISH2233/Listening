@@ -93,7 +93,23 @@ jobs:
         run: |
           # Windows 上提交的文件会丢执行位
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          # 日志先落盘，失败时把它尾部 echo 出来。
+          # 原因：GitHub 页面会把这一步的日志标记为 truncated，
+          # 只有 annotation 那一小段是匿名可见的——那就把报错塞进那里。
+          set +e
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle-build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "===== Gradle 构建失败，下面是从日志里摘出的报错 ====="
+            # Gradle 的报错通常在 FAILURE: 之后；找不到就退而打印末尾 120 行
+            if grep -q 'FAILURE:' /tmp/gradle-build.log; then
+              sed -n '/FAILURE:/,$p' /tmp/gradle-build.log | head -150
+            else
+              tail -120 /tmp/gradle-build.log
+            fi
+            echo "===== 报错摘录结束 ====="
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
