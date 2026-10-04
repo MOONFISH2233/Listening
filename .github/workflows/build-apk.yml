@@ -13,8 +13,6 @@ on:
   workflow_dispatch:
 
 env:
-  MODEL_TARBALL: sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2
-  # 官方 Release（GitHub 直连，CI 上不用镜像）
   MODEL_URL: https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2
 
 jobs:
@@ -53,7 +51,7 @@ jobs:
           tar xjf model.tar.bz2
           echo '--- 解压后顶层结构 ---'
           ls -la
-          # 不假设顶层目录名：把解压出来的所有内容平铺到 models/
+          # 不假设顶层目录名：把解压出来的文件平铺到 models/
           find . -mindepth 2 -type f -exec mv -t . {} +
           find . -mindepth 1 -type d -exec rm -rf {} +
           rm -f model.tar.bz2
@@ -61,7 +59,7 @@ jobs:
           ls -lh
           # 缺文件就早失败，别等到运行时才炸
           for f in encoder-epoch-99-avg-1.int8.onnx decoder-epoch-99-avg-1.int8.onnx joiner-epoch-99-avg-1.int8.onnx tokens.txt; do
-            test -f "$f" || { echo "缺少模型文件: $f"; exit 1; }
+            if [ ! -f "$f" ]; then echo "缺少模型文件: $f"; exit 1; fi
           done
 
       - name: Write local.properties
@@ -70,9 +68,7 @@ jobs:
           # 没配 secret 时为空串：编译照过，只是运行时请求会失败
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
-          {
-            echo "deepseek.api.key=${DEEPSEEK_API_KEY}"
-          } > local.properties
+          echo "deepseek.api.key=${DEEPSEEK_API_KEY}" > local.properties
           echo "local.properties written (key length: ${#DEEPSEEK_API_KEY})"
 
       - name: Build debug APK
@@ -88,12 +84,3 @@ jobs:
           name: tingke-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
-```
-
-这里有个**必须先解决的前置问题**，否则 CI 一定会红：`android/gradle/wrapper/` 里**缺 `gradlew` 和 `gradle-wrapper.jar`**（你之前查过，只有 `gradle-wrapper.properties`）。CI 上跑 `./gradlew` 会直接报“没有这个文件”。我现在去本地补上这两个文件。
-
-另外还有一处得你确认：`local.properties` 里读的 `deepseek.api.key`，CI 上这个文件不存在——我打算在 workflow 里写空值占位，保证编译能过但请求会失败（标记只落盘不出答案），**先验证编译和打包这条链路**。如果你要 CI 里带真 key，那得把 key 加进 GitHub Secrets，再改一行 workflow 从 `${{ secrets.DEEPSEEK_API_KEY }}` 生成 `local.properties`。你要哪种？
-
-我先把 wrapper 补齐的活干了。
-
-{"tool_use": {"name": "PowerShell", "input": {"command": "cd 'D:\\创业\\听刻\\android'; Write-Output '--- wrapper 目录内容 ---'; Get-ChildItem 'gradle\\wrapper' -ErrorAction SilentlyContinue | Select-Object Name, Length; Write-Output '--- gradle-wrapper.properties ---'; Get-Content 'gradle\\wrapper\\gradle-wrapper.properties' -ErrorAction SilentlyContinue; Write-Output '--- 本地有没有 gradle 可执行 ---'; Get-Command gradle -ErrorAction SilentlyContinue | Select-Object Source", "description": "看 wrapper 缺什么、本地有没有 gradle 命令"}]}
