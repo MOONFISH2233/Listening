@@ -19,38 +19,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "听刻"
 include(":app")
-```
-
-
-
-```kotlin
-// 顶层构建文件：只声明插件版本，不在这里配置模块。
-plugins {
-    id("com.android.application") version "8.7.3" apply false
-    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
-}
-```
-
-
-
-```properties
-# JVM 参数：Gradle 编译 200 MB 的 assets 时需要多一些堆
-org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
-
-# AndroidX（必须）
-android.useAndroidX=true
-android.enableJetifier=false
-
-kotlin.code.style=official
-```
-
-
-
-```properties
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.9-bin.zip
-networkTimeout=10000
-validateDistributionUrl=true
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
