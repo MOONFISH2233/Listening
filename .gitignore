@@ -142,3 +142,6 @@ models/
 
 - `spike-asr/` — ASR 探针（一次性，验完即弃）
 - 音频素材、模型权重、ASR 原始输出均不入库（见 `.gitignore`），因为它们体积大且可能含课堂隐私内容
+
+# 浏览器调试产物（playwright MCP 自动生成，不进仓库）
+.playwright-mcp/
