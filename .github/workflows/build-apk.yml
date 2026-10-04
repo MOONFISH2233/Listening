@@ -49,24 +49,34 @@ jobs:
 
       - name: Download ASR model
         run: |
+          set -euxo pipefail
           cd android/app/src/main/assets
           mkdir -p models
           cd models
-          curl -fL --retry 3 -o model.tar.bz2 "$MODEL_URL"
+          echo "开始下载: $MODEL_URL"
+          curl -fL --retry 5 --retry-delay 5 --retry-all-errors \
+               --connect-timeout 30 --max-time 900 \
+               -o model.tar.bz2 "$MODEL_URL"
+          echo '--- 下载完成，包大小 ---'
           ls -lh model.tar.bz2
+
           tar xjf model.tar.bz2
           echo '--- 解压后顶层结构 ---'
           ls -la
-          # 不假设顶层目录名：把解压出来的文件平铺到 models/
-          find . -mindepth 2 -type f -exec mv -t . {} +
-          find . -mindepth 1 -type d -exec rm -rf {} +
+
+          find . -mindepth 2 -type f -print0 | while IFS= read -r -d '' f; do
+            mv "$f" .
+          done
+          find . -mindepth 1 -type d -empty -delete
           rm -f model.tar.bz2
+
           echo '--- 最终模型文件 ---'
           ls -lh
-          # 缺文件就早失败，别等到运行时才炸
+
           for f in encoder-epoch-99-avg-1.int8.onnx decoder-epoch-99-avg-1.int8.onnx joiner-epoch-99-avg-1.int8.onnx tokens.txt; do
             if [ ! -f "$f" ]; then echo "缺少模型文件: $f"; exit 1; fi
           done
+          echo '模型准备完毕'
 
       - name: Write local.properties
         working-directory: android
