@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# 打包进 APK 的模型（189 MB），由 tools/sync_models_to_android.py 从
+# spike-asr/models/ 拷过来。不进仓库。
+app/src/main/assets/models/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# 签名文件绝不能进仓库
+*.jks
+*.keystore
