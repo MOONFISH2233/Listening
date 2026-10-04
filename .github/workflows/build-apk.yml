@@ -48,11 +48,21 @@ jobs:
           cd android/app/src/main/assets
           mkdir -p models
           cd models
-          curl -L -o model.tar.bz2 "$MODEL_URL"
+          curl -fL --retry 3 -o model.tar.bz2 "$MODEL_URL"
+          ls -lh model.tar.bz2
           tar xjf model.tar.bz2
-          mv sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/* .
-          rm -rf sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20 model.tar.bz2
+          echo '--- 解压后顶层结构 ---'
+          ls -la
+          # 不假设顶层目录名：把解压出来的所有内容平铺到 models/
+          find . -mindepth 2 -type f -exec mv -t . {} +
+          find . -mindepth 1 -type d -exec rm -rf {} +
+          rm -f model.tar.bz2
+          echo '--- 最终模型文件 ---'
           ls -lh
+          # 缺文件就早失败，别等到运行时才炸
+          for f in encoder-epoch-99-avg-1.int8.onnx decoder-epoch-99-avg-1.int8.onnx joiner-epoch-99-avg-1.int8.onnx tokens.txt; do
+            test -f "$f" || { echo "缺少模型文件: $f"; exit 1; }
+          done
 
       - name: Write local.properties
         working-directory: android
