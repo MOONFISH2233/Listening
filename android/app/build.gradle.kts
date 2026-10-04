@@ -77,9 +77,17 @@ dependencies {
     // DeepSeek 走 OpenAI 兼容 HTTP，用 OkHttp 直接发请求
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // 端侧流式识别。sherpa-onnx 把 Kotlin API 和 native so 打在一个 AAR 里，
-    // 只发布在 JitPack，坐标的 groupId 是 com.github.k2-fsa（对应
-    // settings.gradle.kts 里加的那个 jitpack 仓库）。
-    // 官方示例工程 android/SherpaOnnx 用的就是这一条。
-    implementation("com.github.k2-fsa:sherpa-onnx:v1.13.8")
+    // 端侧流式识别。sherpa-onnx 的 Kotlin API 和 native so 都在这个 AAR 里，
+    // 只发布在 JitPack（settings.gradle.kts 里加了 jitpack 仓库）。
+    //
+    // 注意这两行为什么这么写——踩过的坑：
+    // 聚合坐标 com.github.k2-fsa:sherpa-onnx:v1.13.8 会同时拉入
+    //   sherpa-onnx (aar, Android) 和 sherpa-onnx-jvm (jar, 桌面 JVM)，
+    // 两者打的是同一套 com.k2fsa.sherpa.onnx.* 类，
+    // 于是 :app:checkDebugDuplicateClasses 报 Duplicate class 直接失败；
+    // 它还会拉 linux/osx/win 的 native-lib，Android 一个都用不上。
+    // 所以这里直接点名 aar 坐标，并 transitive = false 掐掉全部传递依赖。
+    implementation("com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v1.13.8@aar") {
+        isTransitive = false
+    }
 }
