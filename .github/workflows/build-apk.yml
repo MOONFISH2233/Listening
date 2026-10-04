@@ -62,19 +62,24 @@ jobs:
           ls -lh model.tar.bz2
 
           tar xjf model.tar.bz2
-          echo '--- 解压后顶层结构 ---'
-          ls -la
-
-          find . -mindepth 2 -type f -print0 | while IFS= read -r -d '' f; do
-            mv "$f" .
-          done
-          find . -mindepth 1 -type d -empty -delete
           rm -f model.tar.bz2
 
-          echo '--- 最终模型文件 ---'
-          ls -lh
+          # 官方包里除了我们要的 4 个 int8 文件，还有 fp32 模型（330MB）、
+          # 测试 wav、bpe.model 等——全打进 APK 会让包膨胀到 590MB。
+          # 所以只把需要的 4 个挑出来平铺，其余连同子目录一起清掉。
+          WANT="encoder-epoch-99-avg-1.int8.onnx decoder-epoch-99-avg-1.int8.onnx joiner-epoch-99-avg-1.int8.onnx tokens.txt"
+          for f in $WANT; do
+            found=$(find . -mindepth 2 -name "$f" -type f | head -1)
+            if [ -z "$found" ]; then echo "压缩包里找不到: $f"; exit 1; fi
+            mv "$found" .
+          done
+          find . -mindepth 1 -maxdepth 1 ! -name 'encoder-*' ! -name 'decoder-*' ! -name 'joiner-*' ! -name 'tokens.txt' -exec rm -rf {} +
 
-          for f in encoder-epoch-99-avg-1.int8.onnx decoder-epoch-99-avg-1.int8.onnx joiner-epoch-99-avg-1.int8.onnx tokens.txt; do
+          echo '--- 最终模型文件（应当只有 4 个）---'
+          ls -lh
+          count=$(ls -1 | wc -l)
+          if [ "$count" -ne 4 ]; then echo "models 下有 $count 个文件，应该是 4 个"; ls -la; exit 1; fi
+          for f in $WANT; do
             if [ ! -f "$f" ]; then echo "缺少模型文件: $f"; exit 1; fi
           done
           echo '模型准备完毕'

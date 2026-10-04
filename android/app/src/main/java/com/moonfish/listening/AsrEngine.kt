@@ -155,7 +155,10 @@ class AsrEngine(private val context: Context) {
 
         for (name in listOf(ENCODER, DECODER, JOINER, TOKENS)) {
             val out = File(dir, name)
-            context.assets.open(name).use { input ->
+            // 模型在 assets/models/ 下，不是 assets/ 根目录。
+            // 这里曾经只写 name，导致 FileNotFoundException——
+            // 表现是「识别引擎没起来，本次只录音」。
+            context.assets.open("$MODEL_SUBDIR/$name").use { input ->
                 out.outputStream().use { output ->
                     input.copyTo(output, bufferSize = 1 shl 16)
                 }

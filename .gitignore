@@ -145,3 +145,7 @@ models/
 
 # 浏览器调试产物（playwright MCP 自动生成，不进仓库）
 .playwright-mcp/
+
+# 真机调试产物（从手机拉回来的 APK/录音/截图，体积大且是临时文件）
+device_out/
+shot_*.png
